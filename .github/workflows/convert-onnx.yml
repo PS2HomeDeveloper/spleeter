@@ -50,7 +50,6 @@ jobs:
               if op.type == "Placeholder":
                   print(op.name, op.type, op.outputs[0].shape)
 
-          # نجمع كل التنسورات المُستهلَكة (مدخلات لأي عملية)
           consumed = set()
           for op in ops:
               for inp in op.inputs:
@@ -65,7 +64,7 @@ jobs:
                       print(out.name, out.shape)
           EOF
 
-          - name: Convert to ONNX
+      - name: Convert to ONNX
         run: |
           pip install tf2onnx==1.9.3 onnx==1.10.0 --quiet
           python -m tf2onnx.convert \
