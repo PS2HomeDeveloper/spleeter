@@ -50,16 +50,19 @@ jobs:
               if op.type == "Placeholder":
                   print(op.name, op.type, op.outputs[0].shape)
 
-          print("--- Ops containing 'vocals' or 'accompaniment' or 'spectrogram' ---")
+          # نجمع كل التنسورات المُستهلَكة (مدخلات لأي عملية)
+          consumed = set()
           for op in ops:
-              name_lower = op.name.lower()
-              if "vocals" in name_lower or "accompaniment" in name_lower or "spectrogram" in name_lower:
-                  print(op.name, op.type)
+              for inp in op.inputs:
+                  consumed.add(inp.name)
 
-          print("--- Non-save, non-gradient ops near the end (last 60) ---")
-          filtered = [op for op in ops if not op.name.startswith("save") and "gradient" not in op.name.lower()]
-          for op in filtered[-60:]:
-              print(op.name, op.type)
+          print("--- Sink tensors (outputs not consumed by anything else = real graph outputs) ---")
+          for op in ops:
+              if op.name.startswith("save"):
+                  continue
+              for out in op.outputs:
+                  if out.name not in consumed:
+                      print(out.name, out.shape)
           EOF
 
       - name: Locate downloaded model files
