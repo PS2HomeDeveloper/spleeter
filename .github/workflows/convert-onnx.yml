@@ -23,6 +23,7 @@ jobs:
 
       - name: Download official pretrained model
         run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
           pip install soundfile numpy==1.19.5 --no-deps
           python -c "
           import numpy as np
