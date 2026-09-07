@@ -30,6 +30,34 @@ jobs:
           echo "MODEL_DOWNLOADED_OK"
           find pretrained_models -type f
 
+      - name: Inspect checkpoint graph
+        run: |
+          find pretrained_models/2stems -type f
+          echo "---"
+          pip install tensorflow==2.3.0 --quiet
+          python3 << 'EOF'
+          import tensorflow.compat.v1 as tf
+          tf.disable_v2_behavior()
+          
+          meta_path = "pretrained_models/2stems/model.meta"
+          import os
+          if not os.path.exists(meta_path):
+              print("model.meta NOT FOUND - listing dir:")
+              print(os.listdir("pretrained_models/2stems"))
+          else:
+              saver = tf.train.import_meta_graph(meta_path)
+              graph = tf.get_default_graph()
+              ops = graph.get_operations()
+              print(f"Total ops: {len(ops)}")
+              print("--- Placeholder (input) ops ---")
+              for op in ops:
+                  if op.type == "Placeholder":
+                      print(op.name, op.outputs[0].shape)
+              print("--- Likely output ops (last 30) ---")
+              for op in ops[-30:]:
+                  print(op.name, op.type)
+          EOF
+
       - name: Locate downloaded model files
         run: |
           find / -iname "*2stems*" -not -path "*/proc/*" 2>/dev/null | tee model_paths.txt
