@@ -72,12 +72,35 @@ jobs:
           pip install tf2onnx==1.13.0 --quiet
           pip install "onnx==1.12.0" --quiet
           pip install "numpy==1.21.6" --force-reinstall --no-deps --quiet
-          python -m tf2onnx.convert \
-            --checkpoint pretrained_models/2stems/model.meta \
-            --output /tmp/2stems_spleeter.onnx \
-            --inputs "waveform:0" \
-            --outputs "strided_slice_13:0,strided_slice_23:0" \
-            --opset 12
+          python3 << 'EOF'
+          import sys
+          import numpy as np
+
+          _orig_pad = np.pad
+          def _safe_pad(array, pad_width, mode="constant", **kwargs):
+              try:
+                  return _orig_pad(array, pad_width, mode, **kwargs)
+              except ValueError as e:
+                  if "negative" not in str(e):
+                      raise
+                  arr = np.asarray(array)
+                  before, after = pad_width
+                  target_len = max(0, arr.shape[0] + after)
+                  print(f"[WORKAROUND] Truncating oversized constant: {arr.shape[0]} -> {target_len}")
+                  return arr[:target_len]
+          np.pad = _safe_pad
+
+          sys.argv = [
+              "tf2onnx.convert",
+              "--checkpoint", "pretrained_models/2stems/model.meta",
+              "--output", "/tmp/2stems_spleeter.onnx",
+              "--inputs", "waveform:0",
+              "--outputs", "strided_slice_13:0,strided_slice_23:0",
+              "--opset", "12",
+          ]
+          from tf2onnx.convert import main
+          main()
+          EOF
           ls -lh /tmp/2stems_spleeter.onnx
 
       - name: Upload ONNX model
