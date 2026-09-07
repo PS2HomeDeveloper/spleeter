@@ -64,31 +64,49 @@ jobs:
                       print(out.name, out.shape)
           EOF
 
-      - name: Inspect STFT boundary
+      - name: Convert to ONNX
         run: |
-          pip install tensorflow==2.3.0 --quiet
+          pip install tensorflow==2.8.0 --quiet
+          pip install "numpy==1.21.6" --quiet
+          pip install "h5py==3.1.0" --quiet
+          pip install tf2onnx==1.13.0 --quiet
+          pip install "onnx==1.12.0" --quiet
+          pip install "numpy==1.21.6" --force-reinstall --no-deps --quiet
           python3 << 'EOF'
-          import tensorflow.compat.v1 as tf
-          tf.disable_v2_behavior()
+          import sys
+          import numpy as np
 
-          meta_path = "pretrained_models/2stems/model.meta"
-          saver = tf.train.import_meta_graph(meta_path)
-          graph = tf.get_default_graph()
-          ops = graph.get_operations()
+          _orig_pad = np.pad
+          def _safe_pad(array, pad_width, mode="constant", **kwargs):
+              try:
+                  return _orig_pad(array, pad_width, mode, **kwargs)
+              except ValueError as e:
+                  if "negative" not in str(e):
+                      raise
+                  arr = np.asarray(array)
+                  before, after = pad_width
+                  target_len = max(0, arr.shape[0] + after)
+                  return arr[:target_len]
+          np.pad = _safe_pad
 
-          print("--- Ops named 'Abs' or containing 'stft' but not 'inverse' ---")
-          for op in ops:
-              n = op.name.lower()
-              if op.name == "Abs" or ("stft" in n and "inverse" not in n):
-                  shapes = [str(o.shape) for o in op.outputs]
-                  print(op.name, op.type, shapes)
-
-          print("--- First conv2d op inputs ---")
-          for op in ops:
-              if op.name == "conv2d/Conv2D":
-                  for inp in op.inputs:
-                      print("input:", inp.name, inp.shape)
+          sys.argv = [
+              "tf2onnx.convert",
+              "--checkpoint", "pretrained_models/2stems/model.meta",
+              "--output", "/tmp/2stems_spleeter_unet.onnx",
+              "--inputs", "strided_slice_3:0",
+              "--outputs", "vocals_spectrogram/mul:0,accompaniment_spectrogram/mul:0",
+              "--opset", "12",
+          ]
+          from tf2onnx.convert import main
+          main()
           EOF
+          ls -lh /tmp/2stems_spleeter_unet.onnx
+
+      - name: Upload ONNX model
+        uses: actions/upload-artifact@v4
+        with:
+          name: spleeter-2stems-onnx
+          path: /tmp/2stems_spleeter_unet.onnx
 
       - name: Upload ONNX model
         uses: actions/upload-artifact@v4
