@@ -16,9 +16,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install spleeter==2.1.0
           pip install tensorflow==2.5.0
           pip install tf2onnx==1.9.3
+          pip install spleeter==2.1.0
+          pip install numpy==1.19.5 --force-reinstall --no-deps
 
       - name: Download official pretrained model
         run: |
