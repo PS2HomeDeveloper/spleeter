@@ -1,5 +1,3 @@
-mkdir -p .github/workflows
-cat > .github/workflows/convert-onnx.yml << 'EOF'
 name: Convert Spleeter to ONNX
 
 on:
@@ -39,4 +37,3 @@ jobs:
         with:
           name: debug-model-paths
           path: model_paths.txt
-EOF
