@@ -38,24 +38,28 @@ jobs:
           python3 << 'EOF'
           import tensorflow.compat.v1 as tf
           tf.disable_v2_behavior()
-          
+
           meta_path = "pretrained_models/2stems/model.meta"
-          import os
-          if not os.path.exists(meta_path):
-              print("model.meta NOT FOUND - listing dir:")
-              print(os.listdir("pretrained_models/2stems"))
-          else:
-              saver = tf.train.import_meta_graph(meta_path)
-              graph = tf.get_default_graph()
-              ops = graph.get_operations()
-              print(f"Total ops: {len(ops)}")
-              print("--- Placeholder (input) ops ---")
-              for op in ops:
-                  if op.type == "Placeholder":
-                      print(op.name, op.outputs[0].shape)
-              print("--- Likely output ops (last 30) ---")
-              for op in ops[-30:]:
+          saver = tf.train.import_meta_graph(meta_path)
+          graph = tf.get_default_graph()
+          ops = graph.get_operations()
+          print(f"Total ops: {len(ops)}")
+
+          print("--- Input ops ---")
+          for op in ops:
+              if op.type == "Placeholder":
+                  print(op.name, op.type, op.outputs[0].shape)
+
+          print("--- Ops containing 'vocals' or 'accompaniment' or 'spectrogram' ---")
+          for op in ops:
+              name_lower = op.name.lower()
+              if "vocals" in name_lower or "accompaniment" in name_lower or "spectrogram" in name_lower:
                   print(op.name, op.type)
+
+          print("--- Non-save, non-gradient ops near the end (last 60) ---")
+          filtered = [op for op in ops if not op.name.startswith("save") and "gradient" not in op.name.lower()]
+          for op in filtered[-60:]:
+              print(op.name, op.type)
           EOF
 
       - name: Locate downloaded model files
