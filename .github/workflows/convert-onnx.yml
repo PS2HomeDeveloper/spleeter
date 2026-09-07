@@ -65,6 +65,23 @@ jobs:
                       print(out.name, out.shape)
           EOF
 
+          - name: Convert to ONNX
+        run: |
+          pip install tf2onnx==1.9.3 onnx==1.10.0 --quiet
+          python -m tf2onnx.convert \
+            --checkpoint pretrained_models/2stems/model.meta \
+            --output /tmp/2stems_spleeter.onnx \
+            --inputs "waveform:0" \
+            --outputs "strided_slice_13:0,strided_slice_23:0" \
+            --opset 12
+          ls -lh /tmp/2stems_spleeter.onnx
+
+      - name: Upload ONNX model
+        uses: actions/upload-artifact@v4
+        with:
+          name: spleeter-2stems-onnx
+          path: /tmp/2stems_spleeter.onnx
+
       - name: Locate downloaded model files
         run: |
           find / -iname "*2stems*" -not -path "*/proc/*" 2>/dev/null | tee model_paths.txt
