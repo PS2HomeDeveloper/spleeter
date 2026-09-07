@@ -64,44 +64,31 @@ jobs:
                       print(out.name, out.shape)
           EOF
 
-      - name: Convert to ONNX
+      - name: Inspect STFT boundary
         run: |
-          pip install tensorflow==2.8.0 --quiet
-          pip install "numpy==1.21.6" --quiet
-          pip install "h5py==3.1.0" --quiet
-          pip install tf2onnx==1.13.0 --quiet
-          pip install "onnx==1.12.0" --quiet
-          pip install "numpy==1.21.6" --force-reinstall --no-deps --quiet
+          pip install tensorflow==2.3.0 --quiet
           python3 << 'EOF'
-          import sys
-          import numpy as np
+          import tensorflow.compat.v1 as tf
+          tf.disable_v2_behavior()
 
-          _orig_pad = np.pad
-          def _safe_pad(array, pad_width, mode="constant", **kwargs):
-              try:
-                  return _orig_pad(array, pad_width, mode, **kwargs)
-              except ValueError as e:
-                  if "negative" not in str(e):
-                      raise
-                  arr = np.asarray(array)
-                  before, after = pad_width
-                  target_len = max(0, arr.shape[0] + after)
-                  print(f"[WORKAROUND] Truncating oversized constant: {arr.shape[0]} -> {target_len}")
-                  return arr[:target_len]
-          np.pad = _safe_pad
+          meta_path = "pretrained_models/2stems/model.meta"
+          saver = tf.train.import_meta_graph(meta_path)
+          graph = tf.get_default_graph()
+          ops = graph.get_operations()
 
-          sys.argv = [
-              "tf2onnx.convert",
-              "--checkpoint", "pretrained_models/2stems/model.meta",
-              "--output", "/tmp/2stems_spleeter.onnx",
-              "--inputs", "waveform:0",
-              "--outputs", "strided_slice_13:0,strided_slice_23:0",
-              "--opset", "12",
-          ]
-          from tf2onnx.convert import main
-          main()
+          print("--- Ops named 'Abs' or containing 'stft' but not 'inverse' ---")
+          for op in ops:
+              n = op.name.lower()
+              if op.name == "Abs" or ("stft" in n and "inverse" not in n):
+                  shapes = [str(o.shape) for o in op.outputs]
+                  print(op.name, op.type, shapes)
+
+          print("--- First conv2d op inputs ---")
+          for op in ops:
+              if op.name == "conv2d/Conv2D":
+                  for inp in op.inputs:
+                      print("input:", inp.name, inp.shape)
           EOF
-          ls -lh /tmp/2stems_spleeter.onnx
 
       - name: Upload ONNX model
         uses: actions/upload-artifact@v4
