@@ -23,15 +23,22 @@ jobs:
 
       - name: Download official pretrained model
         run: |
+          pip install soundfile numpy==1.19.5 --no-deps
           python -c "
+          import numpy as np
+          import soundfile as sf
+          sf.write('/tmp/silence.wav', np.zeros(44100*2), 44100)
           from spleeter.separator import Separator
-          Separator('spleeter:2stems')
+          sep = Separator('spleeter:2stems')
+          sep.separate_to_file('/tmp/silence.wav', '/tmp/out')
           print('MODEL_DOWNLOADED_OK')
           "
 
       - name: Locate downloaded model files
         run: |
           find / -iname "*2stems*" -not -path "*/proc/*" 2>/dev/null | tee model_paths.txt
+          echo "---checkpoint files---" | tee -a model_paths.txt
+          find / -iname "*.index" -o -iname "*.data-*" -o -iname "checkpoint" 2>/dev/null | grep -v proc | tee -a model_paths.txt
 
       - name: Upload debug info
         uses: actions/upload-artifact@v4
