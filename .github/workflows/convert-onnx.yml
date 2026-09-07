@@ -1,0 +1,42 @@
+mkdir -p .github/workflows
+cat > .github/workflows/convert-onnx.yml << 'EOF'
+name: Convert Spleeter to ONNX
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install spleeter==2.1.0
+          pip install tensorflow==2.5.0
+          pip install tf2onnx==1.9.0
+
+      - name: Download official pretrained model
+        run: |
+          python -c "
+          from spleeter.separator import Separator
+          Separator('spleeter:2stems')
+          print('MODEL_DOWNLOADED_OK')
+          "
+
+      - name: Locate downloaded model files
+        run: |
+          find / -iname "*2stems*" -not -path "*/proc/*" 2>/dev/null | tee model_paths.txt
+
+      - name: Upload debug info
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-model-paths
+          path: model_paths.txt
+EOF
