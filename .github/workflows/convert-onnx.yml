@@ -24,16 +24,11 @@ jobs:
       - name: Download official pretrained model
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
-          pip install soundfile numpy==1.19.5 --no-deps
-          python -c "
-          import numpy as np
-          import soundfile as sf
-          sf.write('/tmp/silence.wav', np.zeros(44100*2), 44100)
-          from spleeter.separator import Separator
-          sep = Separator('spleeter:2stems')
-          sep.separate_to_file('/tmp/silence.wav', '/tmp/out')
-          print('MODEL_DOWNLOADED_OK')
-          "
+          mkdir -p pretrained_models/2stems
+          curl -L -o /tmp/2stems.tar.gz https://github.com/deezer/spleeter/releases/download/v1.4.0/2stems.tar.gz
+          tar -xzf /tmp/2stems.tar.gz -C pretrained_models/2stems
+          echo "MODEL_DOWNLOADED_OK"
+          find pretrained_models -type f
 
       - name: Locate downloaded model files
         run: |
